@@ -1,3 +1,8 @@
+pub(crate) mod dataset;
+
+pub use dataset::Dataset;
+
+
 // This is the interface to the JVM that we'll
 // call the majority of our methods on.
 use jni::JNIEnv;
@@ -6,12 +11,9 @@ use jni::JNIEnv;
 // They carry extra lifetime information to prevent them escaping from the
 // current local frame (which is the scope within which local (temporary)
 // references to Java objects remain valid)
-use jni::objects::{GlobalRef, JClass, JObject, JString};
+use jni::objects::{JClass, JString, JObject};
+use jni::sys::jlong;
 
-use jni::objects::JByteArray;
-use jni::sys::{jint, jlong};
-
-use std::{sync::mpsc, thread, time::Duration};
 
 // This `#[no_mangle]` keeps rust from "mangling" the name and making it unique
 // for this crate. The name follow a strict naming convention so that the
@@ -30,7 +32,7 @@ use std::{sync::mpsc, thread, time::Duration};
 // and at the end use `.into_raw()` to convert a local reference with a lifetime
 // into a raw pointer.
 #[no_mangle]
-pub extern "system" fn Java_HelloWorld_hello<'local>(
+pub extern "system" fn Java_lance_Lance_hello<'local>(
     // Notice that this `env` argument is mutable. Any `JNIEnv` API that may
     // allocate new object references will take a mutable reference to the
     // environment.
@@ -55,129 +57,125 @@ pub extern "system" fn Java_HelloWorld_hello<'local>(
     output
 }
 
-// #[no_mangle]
-// pub extern "system" fn Java_Lance_helloByte<'local>(
-//     env: JNIEnv<'local>,
-//     _class: JClass,
-//     input: JByteArray<'local>,
-// ) -> JByteArray<'local> {
-//     // First, we have to get the byte[] out of java.
-//     let _input = env.convert_byte_array(&input).unwrap();
+#[repr(C)]
+pub enum OptionJLong {
+    None,
+    Some(jlong),
+}
 
-//     // Then we have to create a new java byte[] to return.
-//     let buf = [1; 2000];
-//     let output = env.byte_array_from_slice(&buf).unwrap();
-//     output
-// }
+use std::fmt;
 
-// #[no_mangle]
-// pub extern "system" fn Java_Lance_factAndCallMeBack(
-//     mut env: JNIEnv,
-//     _class: JClass,
-//     n: jint,
-//     callback: JObject,
-// ) {
-//     let i = n as i32;
-//     let res: jint = (2..i + 1).product();
+impl fmt::Debug for OptionJLong {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OptionJLong::None => write!(f, "None"),
+            OptionJLong::Some(value) => write!(f, "Some({})", value),
+        }
+    }
+}
 
-//     env.call_method(callback, "factCallback", "(I)V", &[res.into()])
-//         .unwrap();
-// }
 
-// struct Counter {
-//     count: i32,
-//     callback: GlobalRef,
-// }
+#[no_mangle]
+pub extern "system" fn Java_lance_Lance_newDataset<'local>(
+    env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    uri: JString<'local>,
+) -> jlong {
+    // println!("version: {:?}", version);
+    // println!("block_size: {:?}", block_size);
+    // println!("index_cache_size: {:?}", index_cache_size);
 
-// impl Counter {
-//     pub fn new(callback: GlobalRef) -> Counter {
-//         Counter {
-//             count: 0,
-//             callback: callback,
-//         }
-//     }
+    // let version_option = if version.is_null() {
+    //     None
+    // } else {
+    //     // 获取 Integer 类型的值
+    //     let version_int = env.call_method(
+    //         version,
+    //         "get",
+    //         "()I",
+    //         &[],
+    //     ).unwrap().i().map(|value| value as u64).unwrap();
 
-//     pub fn increment(&mut self, env: &mut JNIEnv) {
-//         self.count = self.count + 1;
-//         env.call_method(
-//             &self.callback,
-//             "counterCallback",
-//             "(I)V",
-//             &[self.count.into()],
-//         )
-//         .unwrap();
-//     }
-// }
+    //     // 将 jint 类型的值转换为 Option<Integer> 类型的值
+    //     Option::from(version_int)
+    // };
 
-// #[no_mangle]
-// pub unsafe extern "system" fn Java_Lance_counterNew(
-//     env: JNIEnv,
-//     _class: JClass,
-//     callback: JObject,
-// ) -> jlong {
-//     let global_ref = env.new_global_ref(callback).unwrap();
-//     let counter = Counter::new(global_ref);
+    // let block_size_option = if block_size.is_null() {
+    //     None
+    // } else {
+    //     // 获取 Integer 类型的值
+    //     let block_size_int = env.call_method(
+    //         block_size,
+    //         "get",
+    //         "()I",
+    //         &[],
+    //     ).unwrap().i().map(|value| value as usize).unwrap();
 
-//     Box::into_raw(Box::new(counter)) as jlong
-// }
+    //     // 将 jint 类型的值转换为 Option<Integer> 类型的值
+    //     Option::from(block_size_int)
+    // };
 
-// #[no_mangle]
-// pub unsafe extern "system" fn Java_Lance_counterIncrement(
-//     mut env: JNIEnv,
-//     _class: JClass,
-//     counter_ptr: jlong,
-// ) {
-//     let counter = &mut *(counter_ptr as *mut Counter);
+    // let index_cache_size_option = if index_cache_size.is_null() {
+    //     None
+    // } else {
+    //     // 获取 Integer 类型的值
+    //     let index_cache_size_int = env.call_method(
+    //         index_cache_size,
+    //         "get",
+    //         "()I",
+    //         &[],
+    //     ).unwrap().i().map(|value| value as usize).unwrap();
 
-//     counter.increment(&mut env);
-// }
+    //     // 将 jint 类型的值转换为 Option<Integer> 类型的值
+    //     Option::from(index_cache_size_int)
+    // };
+    
+    let _uri = jstring_to_string(env, &uri);
+    // let version_u64 = match version {
+    //     OptionJLong::Some(v) => {
+    //         Some(v.try_into().unwrap())
+    //     }
+    //     OptionJLong::None => None,
+    // };
+    // let block_usize = match block_size {
+    //     OptionJLong::Some(v) => {
+    //         Some(v.try_into().unwrap())
+    //     }
+    //     OptionJLong::None => None,
+    // };
+    // let index_cache_size_usize: Option<usize> = match index_cache_size {
+    //     OptionJLong::Some(v) => {
+    //         Some(v.try_into().unwrap())
+    //     }
+    //     OptionJLong::None => None,
+    // };
+    let dataset = Dataset::new(_uri, None, None, None);
+    Box::into_raw(Box::new(dataset)) as jlong
+}
 
-// #[no_mangle]
-// pub unsafe extern "system" fn Java_Lance_counterDestroy(
-//     _env: JNIEnv,
-//     _class: JClass,
-//     counter_ptr: jlong,
-// ) {
-//     let _boxed_counter = Box::from_raw(counter_ptr as *mut Counter);
-// }
+#[no_mangle]
+pub unsafe extern "system" fn Java_lance_Lance_countRows(
+    env: JNIEnv,
+    _class: JClass,
+    dataset_ptr: jlong,
+) -> jlong {
+    println!("dataset_ptr: {:?}", dataset_ptr);
+    let ds = &mut *(dataset_ptr as *mut Dataset);
+    let count = ds.count_rows().unwrap();
+    println!("count: {:?}", count);
 
-// #[no_mangle]
-// pub extern "system" fn Java_Lance_asyncComputation(
-//     env: JNIEnv,
-//     _class: JClass,
-//     callback: JObject,
-// ) {
-//     // `JNIEnv` cannot be sent across thread boundaries. To be able to use JNI
-//     // functions in other threads, we must first obtain the `JavaVM` interface
-//     // which, unlike `JNIEnv` is `Send`.
-//     let jvm = env.get_java_vm().unwrap();
+    count as jlong
+    
+}
 
-//     // We need to obtain global reference to the `callback` object before sending
-//     // it to the thread, to prevent it from being collected by the GC.
-//     let callback = env.new_global_ref(callback).unwrap();
 
-//     // Use channel to prevent the Java program to finish before the thread
-//     // has chance to start.
-//     let (tx, rx) = mpsc::channel();
 
-//     let _ = thread::spawn(move || {
-//         // Signal that the thread has started.
-//         tx.send(()).unwrap();
+fn jstring_to_string(mut env: JNIEnv, jstr: &JString) -> String {
+    // Convert jstring to CString
+    let c_string = env.get_string(jstr).expect("Failed to convert jstring to CString");
 
-//         // Use the `JavaVM` interface to attach a `JNIEnv` to the current thread.
-//         let mut env = jvm.attach_current_thread().unwrap();
+    // Convert CString to Rust String
+    let rust_string = c_string.to_string_lossy().into_owned();
 
-//         for i in 0..11 {
-//             let progress = (i * 10) as jint;
-//             // Now we can use all available `JNIEnv` functionality normally.
-//             env.call_method(&callback, "asyncCallback", "(I)V", &[progress.into()])
-//                 .unwrap();
-//             thread::sleep(Duration::from_millis(100));
-//         }
-
-//         // The current thread is detached automatically when `env` goes out of scope.
-//     });
-
-//     // Wait until the thread has started.
-//     rx.recv().unwrap();
-// }
+    rust_string
+}
